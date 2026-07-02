@@ -1,4 +1,3 @@
-// script.js
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('scoreDisplay');
@@ -9,14 +8,15 @@ const startScreen = document.getElementById('startScreen');
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 640;
 
-// Game variables
 let gameRunning = false;
 let score = 0;
-let gameSpeed = 4;
-let lastTime = 0;
+let gameSpeed = 4.5;
+let roadOffset = 0;
 let frameCount = 0;
 
-// Images
+const ROAD_WIDTH = 280;
+const ROAD_X = (CANVAS_WIDTH - ROAD_WIDTH) / 2;
+
 const images = {
     road: new Image(),
     grass: new Image(),
@@ -24,295 +24,232 @@ const images = {
     enemy: new Image()
 };
 
-let imagesLoaded = 0;
-const totalImages = 4;
-
-// Player
 const player = {
     x: CANVAS_WIDTH / 2 - 25,
-    y: CANVAS_HEIGHT - 120,
+    y: CANVAS_HEIGHT - 130,
     width: 50,
     height: 90,
-    speed: 6
+    speed: 6.5
 };
 
-// Road scrolling
-let roadOffset = 0;
-const ROAD_WIDTH = 280;
-const ROAD_X = (CANVAS_WIDTH - ROAD_WIDTH) / 2;
-
-// Arrays
 let enemies = [];
-let particles = []; // For polish on collision
-
-// Controls
+let particles = [];
 const keys = {};
 
-// Load images
+// Load Images
 function loadImages() {
-    const imageList = [
-        { key: 'road', src: 'images/road.png' },
-        { key: 'grass', src: 'images/grass.png' },
-        { key: 'player', src: 'images/player.png' },
-        { key: 'enemy', src: 'images/enemy.png' }
+    const list = [
+        {key: 'road', src: 'images/road.png'},
+        {key: 'grass', src: 'images/grass.png'},
+        {key: 'player', src: 'images/player.png'},
+        {key: 'enemy', src: 'images/enemy.png'}
     ];
-
-    imageList.forEach(item => {
-        images[item.key].onload = () => {
-            imagesLoaded++;
-            if (imagesLoaded === totalImages) {
-                console.log('All images loaded');
-            }
-        };
+    
+    list.forEach(item => {
+        images[item.key].onload = () => {};
         images[item.key].src = item.src;
     });
 }
 
-// Spawn enemy
+// Spawn Enemy
 function spawnEnemy() {
-    const lanes = [ROAD_X + 40, ROAD_X + 110, ROAD_X + 180, ROAD_X + 240];
-    const randomLane = Math.floor(Math.random() * lanes.length);
+    const lanes = [ROAD_X + 45, ROAD_X + 115, ROAD_X + 185, ROAD_X + 245];
+    const lane = Math.floor(Math.random() * lanes.length);
     
     enemies.push({
-        x: lanes[randomLane] - 25,
-        y: -80,
+        x: lanes[lane] - 25,
+        y: -90,
         width: 50,
         height: 90,
-        speed: gameSpeed + (Math.random() * 1.5 - 0.5)
+        speed: gameSpeed + Math.random() * 1.2
     });
 }
 
-// Collision detection
-function checkCollision(rect1, rect2) {
-    return !(
-        rect1.x + rect1.width < rect2.x ||
-        rect1.x > rect2.x + rect2.width ||
-        rect1.y + rect1.height < rect2.y ||
-        rect1.y > rect2.y + rect2.height
-    );
+function checkCollision(a, b) {
+    return !(a.x + a.width < b.x || a.x > b.x + b.width || 
+             a.y + a.height < b.y || a.y > b.y + b.height);
 }
 
-// Create explosion particles
 function createExplosion(x, y) {
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 20; i++) {
         particles.push({
             x: x + Math.random() * 40 - 20,
             y: y + Math.random() * 60 - 30,
-            vx: Math.random() * 8 - 4,
-            vy: Math.random() * 8 - 6,
-            life: 35 + Math.random() * 20,
-            color: Math.random() > 0.5 ? '#ff8800' : '#ff2200'
+            vx: Math.random() * 9 - 4.5,
+            vy: Math.random() * 8 - 7,
+            life: 40,
+            color: Math.random() > 0.5 ? "#ff8800" : "#ff2222"
         });
     }
 }
 
-// Draw background
+// FIXED Background - No Black Box
 function drawBackground() {
-    // Grass left
-    ctx.drawImage(images.grass, 0, 0, ROAD_X, CANVAS_HEIGHT);
-    ctx.drawImage(images.grass, 0, -CANVAS_HEIGHT + (roadOffset % CANVAS_HEIGHT), ROAD_X, CANVAS_HEIGHT);
+    // Base background
+    ctx.fillStyle = "#0f2a0f";
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const offset = roadOffset % CANVAS_HEIGHT;
+
+    // Grass Left & Right
+    ctx.drawImage(images.grass, 0, offset - CANVAS_HEIGHT, ROAD_X, CANVAS_HEIGHT);
+    ctx.drawImage(images.grass, 0, offset, ROAD_X, CANVAS_HEIGHT);
     
-    // Grass right
     const rightGrassX = ROAD_X + ROAD_WIDTH;
-    ctx.drawImage(images.grass, rightGrassX, 0, CANVAS_WIDTH - rightGrassX, CANVAS_HEIGHT);
-    ctx.drawImage(images.grass, rightGrassX, -CANVAS_HEIGHT + (roadOffset % CANVAS_HEIGHT), CANVAS_WIDTH - rightGrassX, CANVAS_HEIGHT);
-    
-    // Road - tiled scrolling
-    const roadY1 = roadOffset % (CANVAS_HEIGHT * 1.5);
-    ctx.drawImage(images.road, ROAD_X, roadY1 - CANVAS_HEIGHT * 1.2, ROAD_WIDTH, CANVAS_HEIGHT * 2.2);
-    
-    const roadY2 = roadY1 - CANVAS_HEIGHT * 1.5;
-    ctx.drawImage(images.road, ROAD_X, roadY2, ROAD_WIDTH, CANVAS_HEIGHT * 2.2);
+    ctx.drawImage(images.grass, rightGrassX, offset - CANVAS_HEIGHT, CANVAS_WIDTH - rightGrassX, CANVAS_HEIGHT);
+    ctx.drawImage(images.grass, rightGrassX, offset, CANVAS_WIDTH - rightGrassX, CANVAS_HEIGHT);
+
+    // Road
+    ctx.drawImage(images.road, ROAD_X, offset - CANVAS_HEIGHT, ROAD_WIDTH, CANVAS_HEIGHT);
+    ctx.drawImage(images.road, ROAD_X, offset, ROAD_WIDTH, CANVAS_HEIGHT);
 }
 
-// Draw player
 function drawPlayer() {
     ctx.save();
-    ctx.shadowColor = '#0ff';
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#00ffff";
     ctx.drawImage(images.player, player.x, player.y, player.width, player.height);
     ctx.restore();
 }
 
-// Draw enemies
 function drawEnemies() {
-    for (let enemy of enemies) {
+    for (let e of enemies) {
         ctx.save();
-        ctx.shadowColor = '#f33';
-        ctx.shadowBlur = 12;
-        ctx.drawImage(images.enemy, enemy.x, enemy.y, enemy.width, enemy.height);
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ff4444";
+        ctx.drawImage(images.enemy, e.x, e.y, e.width, e.height);
         ctx.restore();
     }
 }
 
-// Draw particles
 function drawParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        ctx.save();
         ctx.globalAlpha = p.life / 40;
         ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, 7, 7);
-        ctx.restore();
+        ctx.fillRect(p.x, p.y, 8, 8);
         
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.3; // gravity
+        p.vy += 0.35;
         p.life--;
-        
-        if (p.life <= 0) {
-            particles.splice(i, 1);
-        }
+        if (p.life <= 0) particles.splice(i, 1);
     }
+    ctx.globalAlpha = 1;
 }
 
-// Update game
-function update(delta) {
+function update() {
     if (!gameRunning) return;
     
     frameCount++;
-    
-    // Scroll road
     roadOffset += gameSpeed;
-    if (roadOffset > 10000) roadOffset = 0;
-    
+
     // Player movement
-    if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-        player.x -= player.speed;
-    }
-    if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-        player.x += player.speed;
-    }
-    
-    // Clamp player to road
-    const minX = ROAD_X + 20;
-    const maxX = ROAD_X + ROAD_WIDTH - player.width - 20;
-    if (player.x < minX) player.x = minX;
-    if (player.x > maxX) player.x = maxX;
-    
-    // Update enemies
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x -= player.speed;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x += player.speed;
+
+    player.x = Math.max(ROAD_X + 25, Math.min(ROAD_X + ROAD_WIDTH - player.width - 25, player.x));
+
+    // Enemies
     for (let i = enemies.length - 1; i >= 0; i--) {
-        const enemy = enemies[i];
-        enemy.y += enemy.speed;
-        
-        // Remove off-screen enemies and increase score
-        if (enemy.y > CANVAS_HEIGHT + 50) {
+        let e = enemies[i];
+        e.y += e.speed;
+
+        if (e.y > CANVAS_HEIGHT + 50) {
             enemies.splice(i, 1);
-            score += 10;
+            score += 12;
             continue;
         }
-        
-        // Collision
-        if (checkCollision(player, enemy)) {
-            createExplosion(player.x + player.width/2, player.y + player.height/2);
+
+        if (checkCollision(player, e)) {
+            createExplosion(player.x + 25, player.y + 45);
             gameOver();
             return;
         }
     }
-    
-    // Spawn enemies
-    if (frameCount % 55 === 0) {
-        spawnEnemy();
-    }
-    
-    // Increase difficulty
-    if (frameCount % 420 === 0 && gameSpeed < 12) {
-        gameSpeed += 0.4;
-    }
-    
-    // Update score display
+
+    if (frameCount % 52 === 0) spawnEnemy();
+    if (frameCount % 380 === 0 && gameSpeed < 13) gameSpeed += 0.35;
+
     scoreDisplay.textContent = `SCORE: ${String(Math.floor(score)).padStart(5, '0')}`;
 }
 
-// Render everything
 function render() {
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    
     drawBackground();
     drawEnemies();
     drawPlayer();
     drawParticles();
 }
 
-// Game loop
-function gameLoop(timestamp) {
-    if (!lastTime) lastTime = timestamp;
-    const delta = timestamp - lastTime;
-    
-    update(delta);
+function gameLoop() {
+    update();
     render();
-    
-    lastTime = timestamp;
     requestAnimationFrame(gameLoop);
 }
 
-// Game over
 function gameOver() {
     gameRunning = false;
     finalScoreText.textContent = `SCORE: ${String(Math.floor(score)).padStart(5, '0')}`;
     gameOverScreen.classList.remove('hidden');
 }
 
-// Restart game
 function restartGame() {
-    // Reset variables
     enemies = [];
     particles = [];
     score = 0;
-    gameSpeed = 4;
+    gameSpeed = 4.5;
     roadOffset = 0;
+    frameCount = 0;
     player.x = CANVAS_WIDTH / 2 - 25;
-    
     gameOverScreen.classList.add('hidden');
     gameRunning = true;
 }
 
-// Start game
 function startGame() {
     startScreen.classList.add('hidden');
     gameRunning = true;
-    score = 0;
-    gameSpeed = 4;
 }
 
-// Keyboard controls
+// Controls
 function setupControls() {
-    window.addEventListener('keydown', e => {
-        keys[e.key] = true;
-        
-        if (!gameRunning && e.key === 'r' || e.key === 'R') {
-            if (!startScreen.classList.contains('hidden')) return;
-            restartGame();
-        }
-    });
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+}
+
+function setupTouchControls() {
+    const container = document.querySelector('.game-container');
     
-    window.addEventListener('keyup', e => {
-        keys[e.key] = false;
-    });
+    const leftBtn = document.createElement('button');
+    const rightBtn = document.createElement('button');
+    
+    leftBtn.textContent = '←';
+    rightBtn.textContent = '→';
+    
+    const btnStyle = {position:'absolute', bottom:'45px', width:'75px', height:'75px', fontSize:'42px', 
+                     background:'rgba(255,255,255,0.18)', color:'white', border:'4px solid rgba(255,255,255,0.5)', 
+                     borderRadius:'50%', zIndex:'300'};
+    
+    Object.assign(leftBtn.style, btnStyle, {left: '35px'});
+    Object.assign(rightBtn.style, btnStyle, {right: '35px'});
+    
+    container.append(leftBtn, rightBtn);
+
+    leftBtn.addEventListener('touchstart', e => {e.preventDefault(); keys['ArrowLeft'] = true;});
+    leftBtn.addEventListener('touchend', e => {e.preventDefault(); keys['ArrowLeft'] = false;});
+    
+    rightBtn.addEventListener('touchstart', e => {e.preventDefault(); keys['ArrowRight'] = true;});
+    rightBtn.addEventListener('touchend', e => {e.preventDefault(); keys['ArrowRight'] = false;});
 }
 
-// Button listeners
-function setupUI() {
-    document.getElementById('startBtn').addEventListener('click', startGame);
-    document.getElementById('restartBtn').addEventListener('click', restartGame);
-}
-
-// Initialize
 function init() {
     loadImages();
     setupControls();
-    setupUI();
+    setupTouchControls();
     
-    // Initial enemy
-    setTimeout(() => {
-        if (imagesLoaded === totalImages) {
-            spawnEnemy();
-        }
-    }, 800);
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', restartGame);
     
-    // Start game loop
     requestAnimationFrame(gameLoop);
 }
 
-// Start the game
 init();

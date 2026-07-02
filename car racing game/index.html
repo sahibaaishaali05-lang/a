@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RUSH RACER</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -10,16 +10,14 @@
     <div class="game-container">
         <canvas id="gameCanvas" width="480" height="640"></canvas>
         
-        <!-- Score -->
         <div id="scoreDisplay" class="score">SCORE: 00000</div>
         
-        <!-- Game Over Screen -->
+        <!-- Game Over -->
         <div id="gameOverScreen" class="overlay hidden">
             <div class="game-over-content">
                 <h1>GAME OVER</h1>
                 <p id="finalScoreText">SCORE: 00000</p>
-                <button id="restartBtn">RESTART</button>
-                <div class="tips">PRESS ARROW KEYS TO MOVE</div>
+                <button id="restartBtn">PLAY AGAIN</button>
             </div>
         </div>
         
@@ -27,7 +25,7 @@
         <div id="startScreen" class="overlay">
             <div class="start-content">
                 <h1>RUSH RACER</h1>
-                <p>Use ← → arrow keys to steer</p>
+                <p>Tap buttons or swipe to steer</p>
                 <button id="startBtn">START GAME</button>
             </div>
         </div>
